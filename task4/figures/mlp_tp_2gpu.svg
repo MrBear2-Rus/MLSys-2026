@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 520" width="680" height="520" font-family="Segoe UI, Microsoft YaHei, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <marker id="arwRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c0392b"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="680" height="520" fill="#ffffff"/>
+
+  <text x="24" y="28" font-size="16" font-weight="700" fill="#1f2328">两卡 Tensor Parallel MLP：Column Parallel + Row Parallel</text>
+  <text x="24" y="48" font-size="11.5" fill="#57606a">MLP: H = GeLU(X·A)，Y = H·B ｜ A: (h × 4h)，B: (4h × h)，X: (token × h)</text>
+
+  <!-- 输入 -->
+  <rect x="290" y="60" width="100" height="36" rx="6" fill="#f2f4f7" stroke="#8c959f"/>
+  <text x="340" y="83" font-size="12" font-weight="600" fill="#1f2328" text-anchor="middle">X  (b × h)</text>
+
+  <!-- broadcast 到两张卡 -->
+  <path d="M 340 96 L 340 112 L 180 112 L 180 138" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+  <path d="M 340 96 L 340 112 L 500 112 L 500 138" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+  <text x="190" y="128" font-size="10.5" fill="#8c959f">broadcast X：复制输入，无通信</text>
+
+  <!-- GPU 0 -->
+  <rect x="40" y="140" width="280" height="266" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="56" y="162" font-size="13" font-weight="700" fill="#1f2328">GPU 0</text>
+
+  <rect x="60" y="172" width="240" height="44" rx="6" fill="#eaf3ff" stroke="#4a7fd0"/>
+  <text x="72" y="190" font-size="11.5" font-weight="600" fill="#1f2328">A₀ = A[:, 0 : 2h]  (h × 2h)</text>
+  <text x="72" y="206" font-size="10.5" fill="#3d5a80">Column Parallel：沿输出维切分权重</text>
+
+  <path d="M 180 216 L 180 230" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+
+  <rect x="60" y="232" width="240" height="44" rx="6" fill="#eefaf0" stroke="#3f9a55"/>
+  <text x="72" y="250" font-size="11.5" font-weight="600" fill="#1f2328">H₀ = GeLU(X · A₀)  (b × 2h)</text>
+  <text x="72" y="266" font-size="10.5" fill="#2f6b40">本卡独立算出，此阶段不需要通信</text>
+
+  <path d="M 180 276 L 180 290" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+
+  <rect x="60" y="292" width="240" height="44" rx="6" fill="#fff4e8" stroke="#d98324"/>
+  <text x="72" y="310" font-size="11.5" font-weight="600" fill="#1f2328">B₀ = B[0 : 2h, :]  (2h × h)</text>
+  <text x="72" y="326" font-size="10.5" fill="#8a5320">Row Parallel：沿输入维切分权重</text>
+
+  <path d="M 180 336 L 180 350" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+
+  <rect x="60" y="352" width="240" height="40" rx="6" fill="#f6eefc" stroke="#8a5fbf"/>
+  <text x="72" y="370" font-size="11.5" font-weight="600" fill="#1f2328">Y₀ = H₀ · B₀  →  partial sum (b × h)</text>
+  <text x="72" y="385" font-size="10.5" fill="#6a4a94">只是部分和，必须与 GPU 1 合并</text>
+
+  <!-- GPU 1 -->
+  <rect x="360" y="140" width="280" height="266" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="376" y="162" font-size="13" font-weight="700" fill="#1f2328">GPU 1</text>
+
+  <rect x="380" y="172" width="240" height="44" rx="6" fill="#eaf3ff" stroke="#4a7fd0"/>
+  <text x="392" y="190" font-size="11.5" font-weight="600" fill="#1f2328">A₁ = A[:, 2h : 4h]  (h × 2h)</text>
+  <text x="392" y="206" font-size="10.5" fill="#3d5a80">另一份输出分片，形状与 A₀ 相同</text>
+
+  <path d="M 500 216 L 500 230" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+
+  <rect x="380" y="232" width="240" height="44" rx="6" fill="#eefaf0" stroke="#3f9a55"/>
+  <text x="392" y="250" font-size="11.5" font-weight="600" fill="#1f2328">H₁ = GeLU(X · A₁)  (b × 2h)</text>
+  <text x="392" y="266" font-size="10.5" fill="#2f6b40">激活值按隐藏维分片，仍无通信</text>
+
+  <path d="M 500 276 L 500 290" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+
+  <rect x="380" y="292" width="240" height="44" rx="6" fill="#fff4e8" stroke="#d98324"/>
+  <text x="392" y="310" font-size="11.5" font-weight="600" fill="#1f2328">B₁ = B[2h : 4h, :]  (2h × h)</text>
+  <text x="392" y="326" font-size="10.5" fill="#8a5320">与 B₀ 在输入维上拼起来才是完整 B</text>
+
+  <path d="M 500 336 L 500 350" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#arw)"/>
+
+  <rect x="380" y="352" width="240" height="40" rx="6" fill="#f6eefc" stroke="#8a5fbf"/>
+  <text x="392" y="370" font-size="11.5" font-weight="600" fill="#1f2328">Y₁ = H₁ · B₁  →  partial sum (b × h)</text>
+  <text x="392" y="385" font-size="10.5" fill="#6a4a94">与 Y₀ 相加才是真正的输出</text>
+
+  <!-- Collective -->
+  <path d="M 180 392 L 180 422" fill="none" stroke="#c0392b" stroke-width="1.8" marker-end="url(#arwRed)"/>
+  <path d="M 500 392 L 500 422" fill="none" stroke="#c0392b" stroke-width="1.8" marker-end="url(#arwRed)"/>
+
+  <rect x="140" y="424" width="400" height="40" rx="6" fill="#fdecec" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="340" y="443" font-size="12" font-weight="700" fill="#8e2420" text-anchor="middle">Collective：All-Reduce (Sum)</text>
+  <text x="340" y="458" font-size="10.5" fill="#8e2420" text-anchor="middle">Y = Y₀ + Y₁　通信量 ≈ b × h 个元素（每层一次）</text>
+
+  <text x="340" y="486" font-size="11" fill="#1f2328" text-anchor="middle">All-Reduce 后两张卡都持有完整 Y (b × h)，可以直接进入下一层</text>
+  <text x="340" y="505" font-size="10.5" fill="#57606a" text-anchor="middle">要点：Column Parallel 阶段零通信（各算各的分片）；只有跨过 Row Parallel 才必须做一次 All-Reduce</text>
+</svg>

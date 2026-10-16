@@ -1,0 +1,22 @@
+# 构建产物
+build/
+*.o
+*.obj
+*.exe
+*.out
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# 打包/临时文件
+*.zip
+mlsys_results*.zip
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+
+# 注意：results/ 里的 CSV、JSON、environment.txt 是交付数据，必须提交，不要忽略

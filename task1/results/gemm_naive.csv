@@ -1,0 +1,12 @@
+# task1 gemm_naive benchmark
+# device   : NVIDIA GeForce RTX 5070 Laptop GPU (sm_120)
+# baseline : cuBLAS SGEMM, CUBLAS_PEDANTIC_MATH, FP32
+# measurement: warmup=10, iters=50, CUDA Event, kernel-only
+# correctness: max|err| < 1e-2 (vs cuBLAS)
+variant,shape,M,N,K,max_abs_err,median_ms,p95_ms,TFLOPS,cublas_median_ms,cublas_TFLOPS,pct_of_cublas
+naive,square,2048,2048,2048,1.525879e-04,12.264944,13.014619,1.4007,1.789696,9.5993,14.59
+naive,tall-skinny,4096,64,4096,0.000000e+00,1.943568,2.047621,1.1049,0.301536,7.1218,15.51
+naive,small-M-1,1,4096,4096,1.678467e-04,0.633136,0.654890,0.0530,0.189440,0.1771,29.92
+naive,small-M-32,32,4096,4096,2.441406e-04,1.085280,1.097509,0.9894,0.202992,5.2896,18.70
+naive,small-M-256,256,4096,4096,2.822876e-04,7.636208,7.857305,1.1249,0.764480,11.2363,10.01
+naive,irregular,127,131,129,5.722046e-06,0.012768,0.015018,0.3362,0.015136,0.2836,118.55

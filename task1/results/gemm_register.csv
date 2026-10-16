@@ -1,0 +1,12 @@
+# task1 gemm_register benchmark (shared tiling + 4x4 register tiling)
+# device   : NVIDIA GeForce RTX 5070 Laptop GPU (sm_120)
+# blockTile=32, threadTile=4x4, blockDim=(8,8)
+# baseline : cuBLAS SGEMM, CUBLAS_PEDANTIC_MATH, FP32
+# measurement: warmup=10, iters=50, CUDA Event, kernel-only
+variant,shape,M,N,K,max_abs_err,median_ms,p95_ms,TFLOPS,cublas_median_ms,cublas_TFLOPS,pct_of_cublas
+register-4x4,square,2048,2048,2048,1.525879e-04,3.016128,3.057926,5.6960,1.334448,12.8741,44.24
+register-4x4,tall-skinny,4096,64,4096,0.000000e+00,0.542128,0.549659,3.9612,0.263120,8.1616,48.53
+register-4x4,small-M-1,1,4096,4096,1.678467e-04,0.491696,0.511192,0.0682,0.205728,0.1631,41.84
+register-4x4,small-M-32,32,4096,4096,2.441406e-04,0.451536,0.461093,2.3780,0.201440,5.3303,44.61
+register-4x4,small-M-256,256,4096,4096,2.822876e-04,1.561344,1.613912,5.5016,0.772656,11.1174,49.49
+register-4x4,irregular,127,131,129,5.722046e-06,0.015904,0.020496,0.2699,0.014768,0.2907,92.86

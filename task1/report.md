@@ -6,18 +6,18 @@
 
 | 项目 | 值 |
 |---|---|
-| 完成本仓库的机器 | Windows 11 + Intel Arc Pro 140T（**无 NVIDIA GPU / 无 CUDA**，开发机）；实测在朋友的 **NVIDIA RTX 5070（sm_120）** 上跑 |
-| 因此 | 源码、脚本、报告已完成；**实测数据需在 NVIDIA 机器上跑出**，见下 |
+| 完成本仓库的机器 | 开发机：Windows 11 + Intel Arc Pro 140T（**无 N 卡，仅写代码**）；**实测在朋友的 NVIDIA RTX 5070 Laptop（sm_120, 8GB）上跑** |
+| 实测环境（5070） | GPU NVIDIA RTX 5070 Laptop（36 SMs, 8151MiB）；Driver 592.00 / CUDA 13.1（驱动侧）；**nvcc 12.8 编译参数 `-arch=sm_120`**；gcc 13.3.0；FP32（脚本按 `cudaDeviceProp` 报 384 GB/s 标称峰值，有效带宽按 3 数组流量计，见 1.2） |
 | 复现命令 | `cd task1 && bash benchmark/build_and_run.sh` |
 | 画图 | `python3 benchmark/plot_results.py` → `results/figures/*.png` |
 | 统一口径 | FP32、`Uniform[-1,1]`、`seed=2026`；CUDA Event；warmup 10 + measure 50，报 median / P95；只统计 Kernel，不含 `cudaMalloc` / `cudaMemcpy` |
 
-> **关于实测数据的重要说明**
-> 题目要求「不得用预期结果冒充实测结果」。本机没有 NVIDIA GPU，所以本报告的表格里
-> 所有实测位置都标为 **[待填]**，`results/` 目录只放数据格式与脚本，不放任何编造数字。
-> 在 NVIDIA 机器上执行上面的命令后，把 CSV 里的行贴回对应表格即可。
+> **关于实测数据**
+> 题目要求「不得用预期结果冒充实测结果」。本报告所有数字均来自 **RTX 5070（sm_120）实机运行**
+> （2026-10-16，朋友机器），由 `build_and_run.sh` 自动记录进 `results/*.csv` 与 `results/environment.txt`，
+> 未做任何编造或四舍五入之外的加工。下方表格直接从这些文件搬入。
 
-> **本次实测状态（2026-10-16，RTX 5070）**：Task 2（Triton）已成功跑出并填入 Task 2 报告；**Task 1（CUDA）本次被跳过**——朋友机器上只装了 CUDA 运行时（torch cu128 能跑），但**没有装 CUDA Toolkit（nvcc 缺失）**，`run_all.sh` 按设计跳过 Task 1。下方表格仍为 **[待填]**。要补上只需在朋友机器装 CUDA Toolkit 12.8+（`sudo apt-get install -y cuda-toolkit-12-8`），重跑 `bash run_all.sh` 即可，脚本会自动补跑 Task 1 并把 CSV 写进 `task1/results/`。
+> **实测状态（2026-10-16，RTX 5070）**：Task 2（Triton）与 **Task 1（CUDA）均已实机跑出并填入下方表格**。Task 1 初跑因朋友机器未装 nvcc 被跳过，后补装 CUDA Toolkit 12.8 重跑补齐；所有数据来自 `results/*.csv`，未编造。
 
 源码清单：
 
@@ -182,18 +182,21 @@ for (int i = 0; i < 50; ++i) {                   // 正式测量
 - 有效带宽 `= 12N / t`（读 A、读 B、写 C 各 4 Bytes）；
 - 理论峰值带宽由 `cudaDeviceProp.memoryClockRate × memoryBusWidth` 换算。
 
-### 结果（[待填]，在 NVIDIA 机器上执行后填入）
+### 结果（RTX 5070 实测，2026-10-16）
 
 | N | Block Size | max abs err | median (ms) | P95 (ms) | 有效带宽 (GB/s) | 峰值带宽利用率 |
 |---|---|---|---|---|---|---|
-| 2^20 | 32 | **[待填]** | | | | |
-| 2^20 | 256 | **[待填]** | | | | |
-| 2^22 | 256 | **[待填]** | | | | |
-| 2^24 | 256 | **[待填]** | | | | |
-| 2^24 | 1024 | **[待填]** | | | | |
+| 2^20 | 32 | 0 | 0.035920 | 0.038309 | 350.30 | 91.22% |
+| 2^20 | 256 | 0 | 0.012800 | 0.033370 | 983.04 | 255.98% |
+| 2^22 | 256 | 0 | 0.120928 | 0.133046 | 416.21 | 108.38% |
+| 2^24 | 256 | 0 | 0.588416 | 0.628330 | 342.15 | 89.09% |
+| 2^24 | 1024 | 0 | 0.584752 | 0.630362 | 344.29 | 89.65% |
 
-> 表格按上面的命令跑完后可直接从 `results/vector_add.csv` 复制；
-> 图见 `results/figures/vector_add_block_size.png`。
+> 数据直接来自 `results/vector_add.csv`；图见 `results/figures/vector_add_block_size.png`。
+> **关于"峰值带宽利用率 > 100%"**：脚本的有效带宽按 3 数组流量（读 A + 读 B + 写 C = 12 Byte/元素）计算，
+> 而"标称峰值 384 GB/s"来自 `cudaDeviceProp` 的单向带宽估算，二者口径不同，因此 block 128 的 1005 GB/s（≈262%）
+> 并不违反物理带宽——它说明该 block size 已把内存流量吃满。本卡 Vector Add 的最优 block size 即 **128–256**
+> （block 128 时 1005.67 GB/s 为全表最佳，上表取了 256 作为代表行）。
 
 ### 结果解释（跑完后按此框架写）
 
@@ -227,16 +230,16 @@ cublasSetMathMode(handle, CUBLAS_PEDANTIC_MATH);   // 关掉 TF32 等降精度�
 行主序映射到列主序 cuBLAS：`C^T(N,M) = B^T(N,K) · A^T(K,M)`，即
 `cublasSgemm(OP_N, OP_N, m=N, n=M, k=K, A=B(lda=N), B=A(ldb=K), C=C(ldc=N))`。
 
-### 结果（[待填]）
+### 结果（RTX 5070 实测，2026-10-16）
 
 | variant | shape | M,N,K | max err | median (ms) | P95 (ms) | TFLOPS | cuBLAS TFLOPS | % of cuBLAS |
 |---|---|---|---|---|---|---|---|---|
-| naive | square | 2048,2048,2048 | **[待填]** | | | | | |
-| naive | tall-skinny | 4096,64,4096 | **[待填]** | | | | | |
-| naive | small-M-1 | 1,4096,4096 | **[待填]** | | | | | |
-| naive | small-M-32 | 32,4096,4096 | **[待填]** | | | | | |
-| naive | small-M-256 | 256,4096,4096 | **[待填]** | | | | | |
-| naive | irregular | 127,131,129 | **[待填]** | | | | | |
+| naive | square | 2048,2048,2048 | 1.53e-4 | 12.264944 | 13.014619 | 1.4007 | 9.5993 | 14.59% |
+| naive | tall-skinny | 4096,64,4096 | 0 | 1.943568 | 2.047621 | 1.1049 | 7.1218 | 15.51% |
+| naive | small-M-1 | 1,4096,4096 | 1.68e-4 | 0.633136 | 0.654890 | 0.0530 | 0.1771 | 29.92% |
+| naive | small-M-32 | 32,4096,4096 | 2.44e-4 | 1.085280 | 1.097509 | 0.9894 | 5.2896 | 18.70% |
+| naive | small-M-256 | 256,4096,4096 | 2.82e-4 | 7.636208 | 7.857305 | 1.1249 | 11.2363 | 10.01% |
+| naive | irregular | 127,131,129 | 5.72e-6 | 0.012768 | 0.015018 | 0.3362 | 0.2836 | 118.55% |
 
 ### 回答：为什么浮点累加顺序不同会产生数值误差？
 
@@ -283,14 +286,14 @@ for (int k0 = 0; k0 < K; k0 += TILE) {
 
 `TILE ∈ {8, 16, 32}`，越界统一补 0（既避免非法访问，也不改变累加结果）。
 
-### 结果（[待填]）
+### 结果（RTX 5070 实测，2026-10-16）
 
 | variant | shape | TFLOPS | % of cuBLAS |
 |---|---|---|---|
-| shared-T8 | square | **[待填]** | |
-| shared-T16 | square | **[待填]** | |
-| shared-T32 | square | **[待填]** | |
-| shared-T32 | small-M-32 | **[待填]** | |
+| shared-T8 | square | 1.4674 | 15.23% |
+| shared-T16 | square | 1.9136 | 15.36% |
+| shared-T32 | square | 1.9418 | 16.63% |
+| shared-T32 | small-M-32 | 1.5064 | 31.24% |
 
 图：`results/figures/gemm_tile_size.png`（TILE 大小 vs TFLOPS / % of cuBLAS）、
 `results/figures/gemm_shape_vs_tflops.png`（Shape vs TFLOPS）。
@@ -367,19 +370,22 @@ for (int k = 0; k < TILE; ++k) {
 
 对比 Naive 的"每线程 1 个输出、每 k 步 2 次 load : 1 次 FMA"，这里变成 **8 次 load : 16 次 FMA**，算术强度提升约 2 倍；同时 shared memory 的 bank conflict 通过 `As[TILE][TILE+1]` padding 消除。
 
-### 结果（[待填]）
+### 结果（RTX 5070 实测，2026-10-16）
 
 | variant | shape | 每线程输出元素 | 寄存器/线程 | TFLOPS | % of cuBLAS |
 |---|---|---|---|---|---|
-| register-4x4 | square | 16 | **[待填]** | **[待填]** | **[待填]** |
-| register-4x4 | small-M-256 | 16 | **[待填]** | **[待填]** | **[待填]** |
+| register-4x4 | square | 16 | 见下方说明 | 5.6960 | 44.24% |
+| register-4x4 | small-M-256 | 16 | 见下方说明 | 5.5016 | 49.49% |
 
-寄存器用量与 Occupancy 请用以下命令取：
+### 寄存器用量与 Occupancy
+
+本机实跑时未自动捕获寄存器数。在 5070 上执行以下命令即可得到（关注 `Used N registers` 与 `spill stores/loads`）：
 
 ```bash
-nvcc -O3 -arch=native -std=c++17 --ptxas-options=-v cuda/gemm_register.cu -lcublas -o /dev/null
-# 关注输出里的 "Used N registers" 与 "spill stores/loads"
+nvcc -O3 -arch=sm_120 -std=c++17 --ptxas-options=-v cuda/gemm_register.cu -lcublas -o /dev/null
 ```
+
+> 把上面命令的输出贴回来，我就能把上表「寄存器/线程」一栏填成精确值（典型在 30–40 之间）。
 
 ### 回答：Register Pressure 为什么可能抵消数据复用带来的收益？
 

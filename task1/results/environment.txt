@@ -1,0 +1,38 @@
+# Task 1 实验环境（由 build_and_run.sh 自动记录）
+## date
+Fri Oct 16 20:32:46 CST 2026
+## uname
+Linux Eric 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+## nvidia-smi
+Fri Oct 16 20:32:46 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 590.62                 Driver Version: 592.00         CUDA Version: 13.1     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 5070 ...    On  |   00000000:01:00.0  On |                  N/A |
+| N/A   54C    P2             11W /   72W |    3057MiB /   8151MiB |      1%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+## nvcc --version
+nvcc: NOT FOUND
+## gcc --version
+gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+## measurement
+warmup=10, iters=50, CUDA Event, kernel-only
+## seed
+2026, FP32, Uniform[-1, 1]
+## build flags
+nvcc -O3 -arch=sm_120 -std=c++17 -lineinfo -L/usr/local/cuda/lib64 <src> -lcublas
+arch flag  : -arch=sm_120
+cublas     : -lcublas

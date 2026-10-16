@@ -42,15 +42,17 @@ Bonus 项（NSA、Triton FlashAttention、Speculative Decoding、CuTe DSL 等）
 
 | 项目 | 本机实测 |
 |---|---|
-| GPU | Intel(R) Arc(TM) Pro 140T GPU (16GB) |
-| `nvidia-smi` | 不存在（无 NVIDIA 显卡 / 驱动） |
-| `nvcc` | 不存在（无 CUDA Toolkit） |
+| GPU（开发机） | Intel(R) Arc(TM) Pro 140T GPU (16GB) |
+| `nvidia-smi`（开发机） | 不存在（无 NVIDIA 显卡 / 驱动） |
+| `nvcc`（开发机） | 不存在（无 CUDA Toolkit） |
+
+> **实测跑分机**：朋友的 **NVIDIA RTX 5070（Blackwell sm_120，8GB）**。Task 2（Triton）已在此机上跑出真实数据并填入 `task2/report.md`；Task 1（CUDA）因该机只装了 CUDA 运行时（torch cu128 可跑）、**未装 CUDA Toolkit（nvcc 缺失）**，`run_all.sh` 按设计跳过，数据待补。
 
 因此本仓库的处理方式是：
 
 - **Task 3 / Task 4 / Task 0 的文字与手算部分**：已完成，结论可以直接看 `report.md`；
 - **Task 1 / Task 2 的源码**：已完整实现并给出可复现的编译、运行与 benchmark 脚本；
-- **Task 1 / Task 2 的 `results/`**：**留空并附上数据模板** —— 题目明确要求「不得用预期结果冒充实测结果」，所以这里不填任何编造的延迟 / TFLOPS 数字；
+- **Task 1 / Task 2 的 `results/`**：题目明确要求「不得用预期结果冒充实测结果」。**Task 2 的 `results/triton_*.json` 已填入 RTX 5070 实测数据**；**Task 1 的 `results/` 仍留空 + 模板**，等待装有 nvcc 的机器补齐；
 - 在任意一台有 NVIDIA GPU 的机器（原生 Ubuntu 或 WSL2）上执行：
 
 ```bash
@@ -90,7 +92,7 @@ cd task2 && python3 triton/bench_all.py
 **代码执行程序 → 更改运行时类型 → 硬件加速器选 T4 GPU** →
 获取代码二选一（**A** 填 `REPO_URL` 后 `git clone`；**B** 直接上传 `../MLSys-2026-colab.zip`）→ 一路运行到底。
 
-> 无论哪条路线，跑完把 `environment.txt` + CSV 发我，就能把下面各报告里的 **[待填]** 一次性补成带结论的完整版。
+> **进度（2026-10-16）**：Task 2（Triton）已在朋友的 RTX 5070 上跑出真实数据并填入 `task2/report.md`；Task 1（CUDA）因该机未装 nvcc 被跳过，仍标 **[待填]**——在朋友机器装 CUDA Toolkit 12.8+ 后重跑 `bash run_all.sh` 即可补齐。
 >
 > 本目录已是一个初始化好的 git 仓库（含 `.gitignore`、`.gitattributes`）。
 > `.gitattributes` 强制脚本类文件为 LF，避免 Windows 提交后在 Linux 上出现 `$'\r': command not found`；
@@ -101,8 +103,8 @@ cd task2 && python3 triton/bench_all.py
 | Task | 内容 | 状态 |
 |---|---|---|
 | 0 | 环境记录、Benchmark 基础、Roofline | ✅ 问答完成；`nvidia-smi` / `nvcc` 因无 NVIDIA 硬件记为 `null` 并说明原因 |
-| 1 | CUDA Vector Add / GEMM（Naive → Shared → Register） | ✅ 4 个 `.cu` + benchmark 脚本 + 报告；⚠️ 实测数据待 GPU 机器补齐 |
-| 2 | Triton Vector Add / GEMM、B: RMSNorm、C: Autotuning | ✅ 源码 + 报告；⚠️ 实测数据待 GPU 机器补齐 |
+| 1 | CUDA Vector Add / GEMM（Naive → Shared → Register） | ✅ 4 个 `.cu` + benchmark 脚本 + 报告；⚠️ 本次 RTX 5070 未装 nvcc，实测数据待补 |
+| 2 | Triton Vector Add / GEMM、B: RMSNorm、C: Autotuning | ✅ 源码 + 报告；✅ **已在 RTX 5070 上跑出实测数据并填入报告** |
 | 3 | Prefill/Decode、KV Cache 推导、MLA、FlashAttention 精读 | ✅ 完成（纯阅读 + 推导，无需 GPU） |
 | 4 | 量化公式、INT8/INT4 手算、SmoothQuant/GPTQ/AWQ、DP/TP/PP | ✅ 完成（含两卡 MLP 切分图） |
 

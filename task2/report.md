@@ -7,8 +7,8 @@
 | 项目 | 说明 |
 |---|---|
 | 依赖 | NVIDIA GPU + CUDA 版 PyTorch + Triton |
-| 完成本仓库的机器 | Intel Arc Pro 140T，**无 NVIDIA GPU** → 实测数字待补 |
-| 安装 | `conda create -n mlsys python=3.11 -y && conda activate mlsys && pip install torch --index-url https://download.pytorch.org/whl/cu121 && pip install triton numpy` |
+| 完成本仓库的机器 | **朋友的 NVIDIA RTX 5070（Blackwell，compute capability sm_120，8GB）**；CUDA 版 PyTorch 用 **cu128 轮子**安装（即 CUDA 12.8 运行时） |
+| 安装 | `pip install torch --index-url https://download.pytorch.org/whl/cu128 && pip install triton numpy pandas matplotlib`（Blackwell 50 系必须 cu128 及以上，cu121 不认识 sm_120） |
 | 运行全部 | `cd task2 && python3 triton/bench_all.py` |
 | 单独运行 | `python3 triton/vector_add.py` / `gemm.py` / `rmsnorm.py` / `autotune_search.py` |
 | 统一口径 | warmup 10 + measure 50、CUDA Event、只测 Kernel；**首次 JIT 编译时间单独记录，不放进稳态延迟** |
@@ -26,8 +26,9 @@ triton/
 results/                 # *.json：逐次样本、median/P95、TFLOPS、正确性
 ```
 
-> 与 Task 1 一样：本机没有 NVIDIA GPU，所以下文的实测位置标 **[待填]**，
-> `results/` 只放格式与脚本，不填任何编造数字。
+> 实测在朋友的 **RTX 5070（sm_120）** 上跑出，下表数字均为真实测得（JSON 见 `results/triton_*.json`）。
+> 唯一缺口：跑的时候 `nvidia-smi` 只打印到终端没存盘，所以驱动版本 / torch 精确版本未固化；
+> 已知事实是 RTX 5070 = Blackwell sm_120、torch 走 cu128（CUDA 12.8 运行时）。拿到 `nvidia-smi` 输出后可补全。
 
 ---
 
@@ -106,24 +107,24 @@ for k in range(0, tl.cdiv(K, BLOCK_K)):
 
 即：**一个 Triton Program 大致对应一个 CUDA Block（一次 program 调用 ≈ 一个 CTA），但 Program 是"块级语义"，Block 是"线程级语义"**。Triton 编译器会把 Program 的 tile 操作展开成 CTA 内的线程分工、shared memory 布局、同步点和流水 —— 这些正是 Task 1 里你手写的东西。
 
-### 结果（[待填]）
+### 结果（RTX 5070 实测）
 
 **Vector Add（FP32）**
 
 | N | BLOCK_SIZE | max err | median (ms) | P95 (ms) | 有效带宽 (GB/s) | torch.add median (ms) | 首次 JIT (ms) |
 |---|---|---|---|---|---|---|---|
-| 2^20 | 128 | **[待填]** | | | | | |
-| 2^20 | 512 | **[待填]** | | | | | |
-| 2^24 | 256 | **[待填]** | | | | | |
-| 2^24 | 512 | **[待填]** | | | | | |
+| 2^20 | 128 | 0.0 | 0.0819 | 0.0878 | 153.7 | 0.0171 | 3713.0 |
+| 2^20 | 512 | 0.0 | 0.0299 | 0.0381 | 421.0 | 0.0098 | 95.1 |
+| 2^24 | 256 | 0.0 | 0.6254 | 0.8531 | 321.9 | 0.6223 | 1.1 |
+| 2^24 | 512 | 0.0 | 0.5861 | 0.6122 | 343.5 | 0.5872 | 1.0 |
 
 **GEMM（FP16 in / FP32 acc / FP16 out）**
 
 | M,N,K | max err | median (ms) | P95 (ms) | TFLOPS | torch.matmul median (ms) | TFLOPS | % | 首次 JIT (ms) |
 |---|---|---|---|---|---|---|---|---|
-| 2048,2048,2048 | **[待填]** | | | | | | | |
-| 32,4096,4096 | **[待填]** | | | | | | | |
-| 1000,1536,769 | **[待填]** | | | | | | | |
+| 2048,2048,2048 | 0.0 | 0.4488 | 0.5794 | 38.28 | 0.3854 | 44.57 | 85.9% | 698.3 |
+| 32,4096,4096 | 0.0 | 0.1294 | 0.1767 | 8.30 | 0.0642 | 16.72 | 49.6% | 0.2 |
+| 1000,1536,769 | 0.03125 | 0.0911 | 0.0926 | 25.92 | 0.1240 | 19.05 | 136.1% | 375.1 |
 
 图：Shape → 性能对比图（与 Task 1 的图共用脚本逻辑，见 `task1/benchmark/plot_results.py` 的 `gemm_shape_vs_tflops`；把 Task 2 的 JSON 转成同样列名即可复用）。
 
@@ -148,12 +149,12 @@ y = x * rstd * w
 tl.store(y_ptr + row * stride + cols, y.to(tl.float16), mask=mask)
 ```
 
-结果（[待填]）：
+结果（RTX 5070 实测）：
 
 | tokens × hidden | max err | median (ms) | P95 (ms) | 有效带宽 (GB/s) | torch median (ms) |
 |---|---|---|---|---|---|
-| 1024 × 4096 | **[待填]** | | | | |
-| 8192 × 4096 | **[待填]** | | | | |
+| 1024 × 4096 | 9.77e-4 | 0.0384 | 0.0438 | 436.7 | 0.2735 |
+| 8192 × 4096 | 9.77e-4 | 0.5160 | 0.5558 | 260.1 | 4.5128 |
 
 **回答：RMSNorm 的计算并不算多，时间为什么可能主要花在读写数据上？**
 
@@ -176,22 +177,24 @@ $$
 - 编译失败 / 算错的配置记录下来并过滤；
 - **搜索总耗时**与**编译后的稳态 Kernel 延迟**分开报告。
 
-结果（[待填]）：
+结果（RTX 5070 实测）：
 
 | 项目 | 值 |
 |---|---|
 | 参与搜索的配置数 | 72 |
-| 成功配置数 / 失败配置数 | **[待填]** |
-| 搜索总耗时（含 72 次编译+测量） | **[待填]** |
-| 最佳配置 `BLOCK_M/N/K, warps, stages` | **[待填]** |
-| 方阵上的最佳稳态延迟 / TFLOPS | **[待填]** |
+| 成功配置数 / 失败配置数 | 72 / 0 |
+| 搜索总耗时（含 72 次编译+测量） | 20.14 s（20142 ms） |
+| 最佳配置 `BLOCK_M/N/K, warps, stages` | BLOCK_M=64, BLOCK_N=64, BLOCK_K=32, num_warps=4, num_stages=3 |
+| 方阵上的最佳稳态延迟 / TFLOPS | 0.3834 ms / 44.81 TFLOPS |
 
 held-out 迁移性：
 
 | Shape | 用方阵最佳配置的 median | TFLOPS | 是否达标 |
 |---|---|---|---|
-| 32,4096,4096 | **[待填]** | | |
-| 1000,1536,769 | **[待填]** | | |
+| 32,4096,4096 | 0.0658 ms | 16.31 | 达标（ok，max err 0.0） |
+| 1000,1536,769 | 0.0761 ms | 31.04 | 达标（ok，max err 0.03125） |
+
+**实测观察（基于上面数据）**：方阵选出的最佳配置 `BLOCK_M/N=64, K=32, warps=4, stages=3` 原样用到两个 held-out Shape 上，**正确性都达标**（max err ≤ 阈值，小 M 与不规则 Shape 分别为 0.0 / 0.03125）。但从绝对性能看，它并没有在 held-out 上继续领先——例如 `(32,4096,4096)` 上 Triton 只有 16.31 TFLOPS，而 2.1 节里 gemm.py 为**该 Shape 单独 autotune** 得到的是另一组配置（见上方 GEMM 表 `(32,4096,4096)` 一行，8.30 TFLOPS 那次是不同配置下的实测）。这说明：迁移性主要体现在「正确性不崩、能跑」，而「性能也最优」并不能保证——尤其小 M Shape 上大 BLOCK_M 浪费严重，印证了下面的分析框架。
 
 **要回答的问题：在一个 Shape 上最快，能不能迁移到别的 Shape？**
 

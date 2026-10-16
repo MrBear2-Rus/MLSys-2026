@@ -6,7 +6,7 @@
 
 | 项目 | 值 |
 |---|---|
-| 完成本仓库的机器 | Windows 11 + Intel Arc Pro 140T（**无 NVIDIA GPU / 无 CUDA**） |
+| 完成本仓库的机器 | Windows 11 + Intel Arc Pro 140T（**无 NVIDIA GPU / 无 CUDA**，开发机）；实测在朋友的 **NVIDIA RTX 5070（sm_120）** 上跑 |
 | 因此 | 源码、脚本、报告已完成；**实测数据需在 NVIDIA 机器上跑出**，见下 |
 | 复现命令 | `cd task1 && bash benchmark/build_and_run.sh` |
 | 画图 | `python3 benchmark/plot_results.py` → `results/figures/*.png` |
@@ -16,6 +16,8 @@
 > 题目要求「不得用预期结果冒充实测结果」。本机没有 NVIDIA GPU，所以本报告的表格里
 > 所有实测位置都标为 **[待填]**，`results/` 目录只放数据格式与脚本，不放任何编造数字。
 > 在 NVIDIA 机器上执行上面的命令后，把 CSV 里的行贴回对应表格即可。
+
+> **本次实测状态（2026-10-16，RTX 5070）**：Task 2（Triton）已成功跑出并填入 Task 2 报告；**Task 1（CUDA）本次被跳过**——朋友机器上只装了 CUDA 运行时（torch cu128 能跑），但**没有装 CUDA Toolkit（nvcc 缺失）**，`run_all.sh` 按设计跳过 Task 1。下方表格仍为 **[待填]**。要补上只需在朋友机器装 CUDA Toolkit 12.8+（`sudo apt-get install -y cuda-toolkit-12-8`），重跑 `bash run_all.sh` 即可，脚本会自动补跑 Task 1 并把 CSV 写进 `task1/results/`。
 
 源码清单：
 

@@ -45,18 +45,38 @@ cd task2 && python3 triton/bench_all.py
 
 即可自动跑满全部配置并把原始逐次测量数据写入 `results/`，再对照 `report.md` 里已写好的「结果分析框架」补齐结论即可。
 
-**没有 NVIDIA 机器？** 用 Google Colab 的免费 T4 即可，直接跑 [`colab_run_all.ipynb`](colab_run_all.ipynb)：
+**没有 NVIDIA 机器？** 两条路都能拿到实测数据，任选其一。
 
-1. 打开 [Colab](https://colab.research.google.com) → 上传 `colab_run_all.ipynb`
-2. **代码执行程序 → 更改运行时类型 → 硬件加速器选 T4 GPU**
-3. 获取代码有两种方式（notebook 里是二选一的两个单元格）：
-   - **路线 A（推荐）**：把本目录推到 GitHub Public 仓库，在单元格里填 `REPO_URL` 后运行 `git clone`（提交作业本来也要求公开仓库）
-   - **路线 B（最快）**：把 `../MLSys-2026-colab.zip` 直接上传，notebook 会自动解压
-4. 继续运行即可：环境确认 → Task 1 编译+跑分+画图 → Task 2 全部实验 → 打包下载 `results/`
+### 路线 ①：租一台 GPU（推荐，最可控）
 
-> 本目录已是一个初始化好的 git 仓库（含 `.gitignore`、`.gitattributes`），
-> `.gitattributes` 强制脚本类文件为 LF，避免 Windows 提交后在 Linux/Colab 上出现 `$'\r': command not found`。
-> 推送命令见项目根目录的 `推送指南.md`。
+租好机器（AutoDL 等，RTX 4090 即可）后把本目录放上去，**一条命令跑完**：
+
+```bash
+cd MLSys-2026
+bash run_all.sh
+```
+
+`run_all.sh` = 环境确认 → 按需补依赖 → Task 1 编译+跑分+画图 → Task 2 全部实验 → 打包 `mlsys_results.zip`。
+选镜像、省钱、踩坑清单见 [`../租卡指南.md`](../租卡指南.md)。
+
+也可以只跑其中一部分：
+
+```bash
+cd task1 && bash benchmark/build_and_run.sh && python3 benchmark/plot_results.py
+cd task2 && python3 triton/bench_all.py
+```
+
+### 路线 ②：Google Colab 免费 T4
+
+跑 [`colab_run_all.ipynb`](colab_run_all.ipynb)：上传到 [Colab](https://colab.research.google.com) →
+**代码执行程序 → 更改运行时类型 → 硬件加速器选 T4 GPU** →
+获取代码二选一（**A** 填 `REPO_URL` 后 `git clone`；**B** 直接上传 `../MLSys-2026-colab.zip`）→ 一路运行到底。
+
+> 无论哪条路线，跑完把 `environment.txt` + CSV 发我，就能把下面各报告里的 **[待填]** 一次性补成带结论的完整版。
+>
+> 本目录已是一个初始化好的 git 仓库（含 `.gitignore`、`.gitattributes`）。
+> `.gitattributes` 强制脚本类文件为 LF，避免 Windows 提交后在 Linux 上出现 `$'\r': command not found`；
+> 推送命令见 [`../推送指南.md`](../推送指南.md)。
 
 ## 各 Task 完成度一览
 

@@ -37,15 +37,45 @@ ENV_FILE="${RESULTS_DIR}/environment.txt"
 echo "[env] wrote ${ENV_FILE}"
 
 # ---------------------------------------------------------------------------
-# 1. 编译（-arch=native 让 nvcc 直接面向本机算力；旧版本 nvcc 用 sm_70 兜底）
+# 1. 先确保 nvcc 在 PATH 上
+#    租来的镜像常常是「conda 环境自带 CUDA runtime，但 toolkit 在 /usr/local/cuda」，
+#    两者是两套东西：conda 的 cudatoolkit 不含 nvcc。
 # ---------------------------------------------------------------------------
-ARCH_FLAG="-arch=native"
-if ! nvcc --help 2>&1 | grep -q -- "-arch=native"; then
-  echo "[warn] nvcc 不支持 -arch=native，回退到 -arch=sm_70"
-  ARCH_FLAG="-arch=sm_70"
+if ! command -v nvcc >/dev/null 2>&1; then
+  for d in /usr/local/cuda/bin /usr/local/cuda-*/bin; do
+    if [ -x "${d}/nvcc" ]; then export PATH="${d}:${PATH}"; echo "[path] 加入 ${d}"; break; fi
+  done
 fi
+if ! command -v nvcc >/dev/null 2>&1; then
+  echo "[ERROR] 找不到 nvcc，请确认镜像里装了 CUDA Toolkit（conda 里的 cudatoolkit 不含 nvcc）。"
+  echo "        可以试：apt-get install -y cuda-toolkit-12-1  或  改用带 CUDA 的镜像。"
+  exit 1
+fi
+echo "[env] nvcc: $(nvcc --version | tail -1)"
 
-# cuBLAS 的库路径：多数环境（含 Colab）直接 -lcublas 即可，这里做一次兜底
+# ---------------------------------------------------------------------------
+# 2. 架构选择：优先从 nvidia-smi 读真实 compute capability（租的卡最稳）
+#    -> -arch=native -> sm_70 兜底
+# ---------------------------------------------------------------------------
+ARCH_FLAG=""
+CC_RAW="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
+case "${CC_RAW}" in
+  ''|*[!0-9]*)
+    if nvcc --help 2>&1 | grep -q -- "-arch=native"; then
+      ARCH_FLAG="-arch=native"
+      echo "[arch] 使用 -arch=native"
+    else
+      ARCH_FLAG="-arch=sm_70"
+      echo "[warn] 探测不到算力且 nvcc 不支持 -arch=native，回退 sm_70"
+    fi
+    ;;
+  *)
+    ARCH_FLAG="-arch=sm_${CC_RAW}"
+    echo "[arch] nvidia-smi 报告 compute capability ${CC_RAW} -> ${ARCH_FLAG}"
+    ;;
+esac
+
+# cuBLAS 的库路径：多数环境（含 Colab / AutoDL）直接 -lcublas 即可，这里做一次兜底
 CUDA_LIB_FLAG=""
 for d in /usr/local/cuda/lib64 /usr/local/cuda/targets/x86_64-linux/lib; do
   if [ -d "${d}" ]; then CUDA_LIB_FLAG="-L${d}"; break; fi
@@ -61,10 +91,15 @@ build_one() {
 build_one vector_add.cu    vector_add
 build_one gemm_naive.cu    gemm_naive
 build_one gemm_shared.cu   gemm_shared
+build_one gemm_register.cu gemm_register
+
+build_one vector_add.cu    vector_add
+build_one gemm_naive.cu    gemm_naive
+build_one gemm_shared.cu   gemm_shared
 build_one gemm_register.cu gemm_register   # 完成 1.5 时才有；未完成可注释掉
 
 # ---------------------------------------------------------------------------
-# 2. 运行并保存原始输出（stdout = CSV，stderr 里也会出现正确性失败提示）
+# 3. 运行并保存原始输出（stdout = CSV，stderr 里也会出现正确性失败提示）
 # ---------------------------------------------------------------------------
 run_one() {
   local exe="$1" csv="$2"

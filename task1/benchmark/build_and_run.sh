@@ -21,19 +21,27 @@ mkdir -p "${RESULTS_DIR}" "${BUILD_DIR}"
 
 # ---------------------------------------------------------------------------
 # 0. 环境记录（报告要求：GPU / Driver / CUDA / 编译参数）
+#    注意：这里的每条命令都要能失败不退出 —— 早期版本 `nvcc --version` 没加保护，
+#    在没有 CUDA Toolkit 的机器上会因 set -e 直接把整个脚本静默杀死。
 # ---------------------------------------------------------------------------
 ENV_FILE="${RESULTS_DIR}/environment.txt"
 {
   echo "# Task 1 实验环境（由 build_and_run.sh 自动记录）"
-  echo "## date";            date
-  echo "## uname";           uname -a
-  echo "## nvidia-smi";      nvidia-smi || echo "nvidia-smi: NOT FOUND"
-  echo "## nvcc --version";  nvcc --version
-  echo "## gcc --version";   gcc --version | head -1
-  echo "## build flags";     echo "-O3 -arch=native -std=c++17 ; linked with -lcublas"
-  echo "## measurement";     echo "warmup=10, iters=50, CUDA Event, kernel-only"
-  echo "## seed";            echo "2026, FP32, Uniform[-1, 1]"
-} > "${ENV_FILE}" 2>&1
+  echo "## date"
+  date || true
+  echo "## uname"
+  uname -a || true
+  echo "## nvidia-smi"
+  nvidia-smi 2>/dev/null || echo "nvidia-smi: NOT FOUND"
+  echo "## nvcc --version"
+  nvcc --version 2>/dev/null || echo "nvcc: NOT FOUND"
+  echo "## gcc --version"
+  { gcc --version 2>/dev/null | head -1; } || echo "gcc: NOT FOUND"
+  echo "## measurement"
+  echo "warmup=10, iters=50, CUDA Event, kernel-only"
+  echo "## seed"
+  echo "2026, FP32, Uniform[-1, 1]"
+} > "${ENV_FILE}" 2>&1 || true
 echo "[env] wrote ${ENV_FILE}"
 
 # ---------------------------------------------------------------------------
@@ -148,15 +156,18 @@ build_one() {
        "${CUDA_DIR}/${src}" ${CUBLAS_LINK} -o "${BUILD_DIR}/${out}"
 }
 
-build_one vector_add.cu    vector_add
-build_one gemm_naive.cu    gemm_naive
-build_one gemm_shared.cu   gemm_shared
-build_one gemm_register.cu gemm_register
+# 把真实采用的编译参数补进 environment.txt（放在 arch/link 探测之后才写，才是真值）
+{
+  echo "## build flags"
+  echo "nvcc -O3 ${ARCH_FLAG} -std=c++17 -lineinfo ${CUDA_LIB_FLAG} <src> ${CUBLAS_LINK}"
+  echo "arch flag  : ${ARCH_FLAG}"
+  echo "cublas     : ${CUBLAS_LINK}"
+} >> "${ENV_FILE}" 2>&1 || true
 
 build_one vector_add.cu    vector_add
 build_one gemm_naive.cu    gemm_naive
 build_one gemm_shared.cu   gemm_shared
-build_one gemm_register.cu gemm_register   # 完成 1.5 时才有；未完成可注释掉
+build_one gemm_register.cu gemm_register
 
 # ---------------------------------------------------------------------------
 # 3. 运行并保存原始输出（stdout = CSV，stderr 里也会出现正确性失败提示）

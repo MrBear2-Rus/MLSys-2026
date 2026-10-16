@@ -18,6 +18,24 @@ MLSys-2026/
 └── task4/                 量化与分布式推理：PTQ、手算、DP / TP / PP
 ```
 
+## 各 Task 是否需要 NVIDIA GPU
+
+| Task | 网站题号 | 是否必须用 N 卡 | 说明 |
+|---|---|---|---|
+| 0 前置知识 | 题 6 | ❌ 不需要 | 只是**记录** `nvidia-smi` / `nvcc` 输出。没有卡时按题目要求写 `null` + 说明原因即可（本目录已如此处理）；若最终在 N 卡机器上跑通，可把这里的 `null` 换成真实输出，更完整 |
+| 1 CUDA | 题 7 | ✅ **必须** | 题面原文：「Task 1 需要支持 CUDA 的 NVIDIA GPU」。要用 `nvcc` 编译并实测 GB/s、TFLOPS、`% of cuBLAS` |
+| 2 Kernel DSL | 题 8 | ✅ **必须** | Triton 只有 NVIDIA 后端；且题面要求与 cuBLAS / `torch.matmul` 同精度同口径对照 |
+| 3 一个 Token 的一生（KV Cache） | 题 9 | ❌ 不需要 | 题面原文：「这一部分**不要求运行模型，也不要求实现 Kernel**」。纯读论文 + 推导 + 手算 |
+| 4 量化与分布式 | 题 10 | ❌ 不需要 | 题面原文：「**不运行模型、不写框架代码，也不要求 GPU、Docker 或额外环境**」 |
+
+**结论：只有 Task 1 和 Task 2 需要卡；其余三题（含 KV Cache 那道）零硬件门槛。**
+Bonus 项（NSA、Triton FlashAttention、Speculative Decoding、CuTe DSL 等）都是可选的，不做不扣分。
+
+因此**最短路径**是：先在任意机器上完成 Task 0 / 3 / 4（已可交付），
+再用一张 N 卡只跑 Task 1 + Task 2 的实验（`bash run_all.sh`，约 1 小时）。
+
+---
+
 ## ⚠️ 复现前必读：本机硬件限制
 
 这套题里 **Task 1 / Task 2 必须在 NVIDIA GPU 上运行**，而完成本目录的机器配置为：

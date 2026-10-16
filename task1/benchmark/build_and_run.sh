@@ -45,10 +45,17 @@ if ! nvcc --help 2>&1 | grep -q -- "-arch=native"; then
   ARCH_FLAG="-arch=sm_70"
 fi
 
+# cuBLAS 的库路径：多数环境（含 Colab）直接 -lcublas 即可，这里做一次兜底
+CUDA_LIB_FLAG=""
+for d in /usr/local/cuda/lib64 /usr/local/cuda/targets/x86_64-linux/lib; do
+  if [ -d "${d}" ]; then CUDA_LIB_FLAG="-L${d}"; break; fi
+done
+
 build_one() {
   local src="$1" out="$2"
   echo "[build] ${src} -> ${out}"
-  nvcc -O3 ${ARCH_FLAG} -std=c++17 -lineinfo "${CUDA_DIR}/${src}" -lcublas -o "${BUILD_DIR}/${out}"
+  nvcc -O3 ${ARCH_FLAG} -std=c++17 -lineinfo ${CUDA_LIB_FLAG} \
+       "${CUDA_DIR}/${src}" -lcublas -o "${BUILD_DIR}/${out}"
 }
 
 build_one vector_add.cu    vector_add

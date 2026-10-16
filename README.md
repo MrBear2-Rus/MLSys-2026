@@ -45,10 +45,18 @@ cd task2 && python3 triton/bench_all.py
 
 即可自动跑满全部配置并把原始逐次测量数据写入 `results/`，再对照 `report.md` 里已写好的「结果分析框架」补齐结论即可。
 
-**没有 NVIDIA 机器？** 用免费云 GPU 即可，直接跑 [`colab_run_all.ipynb`](colab_run_all.ipynb)：
-Colab 菜单 `代码执行程序 → 更改运行时类型 → T4 GPU`，把 notebook 里的 `REPO_URL` 改成自己的仓库地址，
-然后全部运行；它会依次完成环境确认、Task 1 编译+跑分+画图、Task 2 全部实验，并打包 `results/` 供下载。
-（Colab 免费 T4 与 Kaggle 每周 30 小时 T4×2 都够跑完这两题。）
+**没有 NVIDIA 机器？** 用 Google Colab 的免费 T4 即可，直接跑 [`colab_run_all.ipynb`](colab_run_all.ipynb)：
+
+1. 打开 [Colab](https://colab.research.google.com) → 上传 `colab_run_all.ipynb`
+2. **代码执行程序 → 更改运行时类型 → 硬件加速器选 T4 GPU**
+3. 获取代码有两种方式（notebook 里是二选一的两个单元格）：
+   - **路线 A（推荐）**：把本目录推到 GitHub Public 仓库，在单元格里填 `REPO_URL` 后运行 `git clone`（提交作业本来也要求公开仓库）
+   - **路线 B（最快）**：把 `../MLSys-2026-colab.zip` 直接上传，notebook 会自动解压
+4. 继续运行即可：环境确认 → Task 1 编译+跑分+画图 → Task 2 全部实验 → 打包下载 `results/`
+
+> 本目录已是一个初始化好的 git 仓库（含 `.gitignore`、`.gitattributes`），
+> `.gitattributes` 强制脚本类文件为 LF，避免 Windows 提交后在 Linux/Colab 上出现 `$'\r': command not found`。
+> 推送命令见项目根目录的 `推送指南.md`。
 
 ## 各 Task 完成度一览
 

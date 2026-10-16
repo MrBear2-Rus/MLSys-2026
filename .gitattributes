@@ -1,0 +1,13 @@
+# 保证脚本类文件在仓库里（以及 Colab 克隆出来时）一律是 LF，
+# 否则 Windows 上提交的 build_and_run.sh 会带 CRLF，在 Linux 下报 $'\r': command not found
+*.sh    text eol=lf
+*.py    text eol=lf
+*.cu    text eol=lf
+*.h     text eol=lf
+*.cpp   text eol=lf
+*.md    text eol=lf
+*.ipynb text eol=lf
+*.csv   text eol=lf
+*.txt   text eol=lf
+*.json  text eol=lf
+*.svg   text eol=lf

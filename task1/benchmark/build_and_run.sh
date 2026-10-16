@@ -75,17 +75,35 @@ case "${CC_RAW}" in
     ;;
 esac
 
-# cuBLAS 的库路径：多数环境（含 Colab / AutoDL）直接 -lcublas 即可，这里做一次兜底
+# cuBLAS 的库路径：多数环境直接 -lcublas 即可。
+# CUDA 13 起部分容器镜像不再提供 libcublas.so 这个软链，只留 libcublas.so.13，
+# 所以这里先探测 -lcublas 能不能链接，不行就退化成「直接链接 .so 文件全路径」。
 CUDA_LIB_FLAG=""
 for d in /usr/local/cuda/lib64 /usr/local/cuda/targets/x86_64-linux/lib; do
   if [ -d "${d}" ]; then CUDA_LIB_FLAG="-L${d}"; break; fi
 done
 
+CUBLAS_LINK="-lcublas"
+PROBE_SRC="$(mktemp /tmp/_cublas_probe_XXXX.cpp)"
+echo 'int main(){return 0;}' > "${PROBE_SRC}"
+if ! nvcc -O1 -x cu ${CUDA_LIB_FLAG} "${PROBE_SRC}" ${CUBLAS_LINK} -o /tmp/_cublas_probe 2>/dev/null; then
+  CANDIDATE="$(ls /usr/local/cuda/lib64/libcublas.so* /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so* 2>/dev/null | head -1)"
+  if [ -n "${CANDIDATE}" ] && nvcc -O1 -x cu ${CUDA_LIB_FLAG} "${PROBE_SRC}" "${CANDIDATE}" -o /tmp/_cublas_probe 2>/dev/null; then
+    CUBLAS_LINK="${CANDIDATE}"
+    echo "[link] -lcublas 不可用，改用 ${CANDIDATE}"
+  else
+    echo "[link] 无法链接 cuBLAS，编译大概率会失败；可换用 CUDA 12.x 的镜像重试。"
+  fi
+else
+  echo "[link] cuBLAS 链接探测通过（${CUBLAS_LINK}）"
+fi
+rm -f "${PROBE_SRC}" /tmp/_cublas_probe
+
 build_one() {
   local src="$1" out="$2"
   echo "[build] ${src} -> ${out}"
   nvcc -O3 ${ARCH_FLAG} -std=c++17 -lineinfo ${CUDA_LIB_FLAG} \
-       "${CUDA_DIR}/${src}" -lcublas -o "${BUILD_DIR}/${out}"
+       "${CUDA_DIR}/${src}" ${CUBLAS_LINK} -o "${BUILD_DIR}/${out}"
 }
 
 build_one vector_add.cu    vector_add

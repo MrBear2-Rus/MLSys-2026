@@ -84,6 +84,55 @@ ${PY} -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>/
   || echo "[warn] torch 看不到 CUDA —— Task 2 会失败，请安装 CUDA 版 torch（见 租卡指南.md）"
 
 # ---------------------------------------------------------------------------
+# 1.5 冒烟测试：先在 1 秒内确认 torch / triton 能在这张卡上真正跑起来，
+#     避免跑到一半（或 72 配置 autotune 到一半）才发现版本不匹配。
+# ---------------------------------------------------------------------------
+hr; echo "[1.5/5] 冒烟测试（torch 矩阵乘 + triton kernel）"
+${PY} - <<'PYEOF' || echo "[warn] 冒烟测试未通过：Task 2 可能会失败，先看上面的具体报错"
+import sys
+try:
+    import torch
+except Exception as exc:
+    print("  [fail] import torch:", exc); sys.exit(1)
+if not torch.cuda.is_available():
+    print("  [fail] torch.cuda.is_available() == False"); sys.exit(1)
+
+a = torch.randn(512, 512, device="cuda", dtype=torch.float16)
+b = torch.randn(512, 512, device="cuda", dtype=torch.float16)
+err = (a @ b - torch.matmul(a, b)).abs().max().item()
+print(f"  [ok] torch GPU 矩阵乘正常 (max diff {err:.2e}), device={torch.cuda.get_device_name(0)}")
+
+try:
+    import triton
+    import triton.language as tl
+except Exception as exc:
+    print("  [fail] import triton:", exc, "-> 试 pip install triton"); sys.exit(1)
+
+@triton.jit
+def _smoke(x_ptr, y_ptr, n, BLOCK: tl.constexpr):
+    pid = tl.program_id(0)
+    offs = pid * BLOCK + tl.arange(0, BLOCK)
+    m = offs < n
+    tl.store(y_ptr + offs, tl.load(x_ptr + offs, mask=m) * 2.0, mask=m)
+
+try:
+    x = torch.ones(4096, device="cuda", dtype=torch.float32)
+    y = torch.empty_like(x)
+    # 这里**显式**传 num_warps/num_stages，保证 num_stages 关键字可用（旧版 triton 不认）
+    _smoke[(4,)](x, y, 4096, BLOCK=1024, num_warps=4, num_stages=2)
+    torch.cuda.synchronize()
+    assert abs(y.mean().item() - 2.0) < 1e-5, y.mean().item()
+    print(f"  [ok] triton {triton.__version__} kernel 运行正常")
+except TypeError as exc:
+    print("  [fail] triton 调用签名不兼容（可能是 triton 与 torch 版本不匹配）:", exc)
+    print("         -> 解决：pip install -U triton  或按 torch 版本装对应 triton")
+    sys.exit(1)
+except Exception as exc:
+    print("  [fail] triton kernel 执行失败:", exc)
+    sys.exit(1)
+PYEOF
+
+# ---------------------------------------------------------------------------
 # 2. Task 1
 # ---------------------------------------------------------------------------
 hr; echo "[2/5] Task 1：CUDA（Vector Add / Naive GEMM / Shared Tiling / Register Tiling）"

@@ -74,6 +74,19 @@ else
   echo "       装完重新跑 bash run_all.sh 即可补上 Task 1。"
 fi
 
+# 把环境信息固化到 task0/env/env_raw.txt（供报告直接使用，避免手写错位 / 残留旧机环境）
+mkdir -p task0/env
+{
+  echo "# 运行环境（由 run_all.sh 自动记录）"
+  echo "## date"; date 2>/dev/null || true
+  echo "## nvidia-smi"; nvidia-smi 2>/dev/null || echo "NOT FOUND"
+  echo "## gpu"; nvidia-smi --query-gpu=name,driver_version,memory.total,compute_cap --format=csv,noheader 2>/dev/null || true
+  echo "## nvcc"; nvcc --version 2>/dev/null || echo "NOT FOUND（未装 CUDA Toolkit）"
+  echo "## torch"; "${PY}" -c "import torch,sys; print(torch.__version__,'| cuda runtime',torch.version.cuda,'| device',(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'n/a'))" 2>/dev/null || echo "NOT FOUND"
+  echo "## triton"; "${PY}" -c "import triton; print(triton.__version__)" 2>/dev/null || echo "NOT FOUND"
+} > task0/env/env_raw.txt 2>&1 || true
+echo "[env] 已写入 task0/env/env_raw.txt"
+
 # ---------------------------------------------------------------------------
 # 1. 依赖安装（torch 按算力选轮子；PEP 668 自动改用 venv）
 # ---------------------------------------------------------------------------
@@ -81,11 +94,11 @@ hr; echo "[1/6] 安装依赖（只装缺的）"
 
 pip_install() {
   # 先官方源，失败自动换清华源
-  "${PY}" -m pip install "$@" 2>&1 | tail -2
+  "${PY}" -m pip install "$@" 2>&1 | tee -a install.log
   local st="${PIPESTATUS[0]}"
   if [ "${st}" -ne 0 ]; then
     echo "[pip] 官方源失败，换清华源重试 ..."
-    "${PY}" -m pip install --index-url https://pypi.tuna.tsinghua.edu.cn/simple "$@" 2>&1 | tail -2
+    "${PY}" -m pip install --index-url https://pypi.tuna.tsinghua.edu.cn/simple "$@" 2>&1 | tee -a install.log
     st="${PIPESTATUS[0]}"
   fi
   return "${st}"
@@ -122,16 +135,16 @@ if [ -n "${MISSING}" ]; then
     echo "[torch] 开始安装 CUDA 版 torch（轮子约 2~3 GB，耐心等待）..."
     TORCH_OK=0
     if [ "${CC_RAW:-0}" -ge 120 ] 2>/dev/null; then
-      "${PY}" -m pip install torch --index-url https://download.pytorch.org/whl/cu128 2>&1 | tail -2 \
+      "${PY}" -m pip install torch --index-url https://download.pytorch.org/whl/cu128 2>&1 | tee -a install.log \
         && TORCH_OK=1
     fi
     if [ "${TORCH_OK}" -eq 0 ]; then
       # 兜底：非 Blackwell 用 cu121；再不行用 PyPI 默认
-      "${PY}" -m pip install torch --index-url https://download.pytorch.org/whl/cu121 2>&1 | tail -2 \
+      "${PY}" -m pip install torch --index-url https://download.pytorch.org/whl/cu121 2>&1 | tee -a install.log \
         && TORCH_OK=1
     fi
     if [ "${TORCH_OK}" -eq 0 ]; then
-      "${PY}" -m pip install torch 2>&1 | tail -2 && TORCH_OK=1
+      "${PY}" -m pip install torch 2>&1 | tee -a install.log && TORCH_OK=1
     fi
     [ "${TORCH_OK}" -eq 1 ] || echo "[warn] torch 安装失败：Task 2 无法运行，把上面的报错发回来。"
   fi
@@ -248,7 +261,10 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in glob.glob(base + "/**", recursive=True):
             if os.path.isfile(p):
                 zf.write(p, p)
-    for extra in ("task0/env/env_raw.txt",):
+    for extra in glob.glob("task0/env/**", recursive=True):
+        if os.path.isfile(extra):
+            zf.write(extra, extra)
+    for extra in glob.glob("task1/build_and_run.log"):
         if os.path.isfile(extra):
             zf.write(extra, extra)
 print("打包完成 ->", out)

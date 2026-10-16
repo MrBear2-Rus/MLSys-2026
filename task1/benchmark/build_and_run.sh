@@ -54,26 +54,68 @@ fi
 echo "[env] nvcc: $(nvcc --version | tail -1)"
 
 # ---------------------------------------------------------------------------
-# 2. 架构选择：优先从 nvidia-smi 读真实 compute capability（租的卡最稳）
-#    -> -arch=native -> sm_70 兜底
+# 2. 架构选择：**逐个探测**哪组 -arch 能编译通过
+#    为什么要探测而不是直接用 -arch=native：
+#      - 50 系（RTX 5070 等）= Blackwell sm_120，需要 CUDA Toolkit 12.8+ 才认识；
+#        旧 nvcc 会直接报 "Unsupported gpu architecture 'compute_120'"。
+#      - 所以候选顺序是：nvidia-smi 读到的真实算力 -> 它对应的 PTX -> native -> 保守兜底。
 # ---------------------------------------------------------------------------
-ARCH_FLAG=""
 CC_RAW="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
+CANDIDATES=""
 case "${CC_RAW}" in
-  ''|*[!0-9]*)
-    if nvcc --help 2>&1 | grep -q -- "-arch=native"; then
-      ARCH_FLAG="-arch=native"
-      echo "[arch] 使用 -arch=native"
-    else
-      ARCH_FLAG="-arch=sm_70"
-      echo "[warn] 探测不到算力且 nvcc 不支持 -arch=native，回退 sm_70"
-    fi
-    ;;
+  ''|*[!0-9]*) ;;
   *)
-    ARCH_FLAG="-arch=sm_${CC_RAW}"
-    echo "[arch] nvidia-smi 报告 compute capability ${CC_RAW} -> ${ARCH_FLAG}"
+    echo "[arch] nvidia-smi 报告 compute capability ${CC_RAW}"
+    # 1) 精确匹配：生成该架构的原生 SASS，最快
+    CANDIDATES="sm_${CC_RAW} compute_${CC_RAW}"
     ;;
 esac
+# 2) 兜底：一律用 **PTX**（compute_XX）而不是 sm_XX。
+#    因为 cubin/SASS 不跨大版本兼容，sm_90 的二进制在 sm_120（5070）上会直接
+#    报 "no kernel image is available"；而 PTX 是前向兼容的，驱动会在首次运行时 JIT。
+CANDIDATES="${CANDIDATES} native compute_120 compute_90 compute_86 compute_75"
+
+PROBE_SRC="$(mktemp /tmp/_arch_probe_XXXX.cu)"
+printf '__global__ void _probe(void){}\nint main(void){return 0;}\n' > "${PROBE_SRC}"
+
+ARCH_FLAG=""
+USED_PTX_FALLBACK=0
+for cand in ${CANDIDATES}; do
+  case "${cand}" in
+    compute_*)
+      NUM="${cand#compute_}"
+      FLAG="-gencode=arch=compute_${NUM},code=compute_${NUM}"
+      ;;
+    *)
+      FLAG="-arch=${cand}"
+      ;;
+  esac
+  if nvcc -O1 ${FLAG} "${PROBE_SRC}" -o /tmp/_arch_probe.bin >/dev/null 2>&1; then
+    ARCH_FLAG="${FLAG}"
+    echo "[arch] 采用 ${FLAG}"
+    break
+  fi
+done
+rm -f "${PROBE_SRC}" /tmp/_arch_probe.bin
+
+if [ -z "${ARCH_FLAG}" ]; then
+  echo "[ERROR] 没有任何 -arch 候选能编译通过。"
+  echo "        50 系显卡请把 CUDA Toolkit 升级到 12.8 或更高（旧版 nvcc 不认识 sm_120）。"
+  echo "        当前：$(nvcc --version | tail -1)"
+  exit 1
+fi
+
+# 如果没用上精确架构，提醒一下：PTX 回退会导致第一次 kernel 启动变慢（驱动 JIT），
+# 而且少数情况下运行时会报 no kernel image —— 那时唯一解是升级 CUDA Toolkit。
+case "${ARCH_FLAG}" in
+  *"compute_${CC_RAW}"*|*"sm_${CC_RAW}"*|*native*) ;;
+  *) USED_PTX_FALLBACK=1 ;;
+esac
+if [ "${USED_PTX_FALLBACK}" -eq 1 ]; then
+  echo "[warn] 没有用上本卡原生的 sm_${CC_RAW}（nvcc 版本偏旧）。"
+  echo "       已改用 PTX 前向兼容模式：能跑，但首次 kernel 启动会慢一点。"
+  echo "       若运行时报 'no kernel image is available'，请升级 CUDA Toolkit 后重试。"
+fi
 
 # cuBLAS 的库路径：多数环境直接 -lcublas 即可。
 # CUDA 13 起部分容器镜像不再提供 libcublas.so 这个软链，只留 libcublas.so.13，

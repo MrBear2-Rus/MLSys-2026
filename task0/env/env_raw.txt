@@ -1,0 +1,26 @@
+# Task 0 环境原始记录（本任务由两台机器共同完成）
+
+## 开发 / 作答机（本机，2026-10-16）
+OS: Microsoft Windows 11 家庭版 中文版 (10.0.26200 / Build 26200)
+注册: 992281555@qq.com / HP Inc.
+GPU: Intel(R) Arc(TM) Pro 140T GPU (16GB)，驱动 32.0.101.8801
+nvidia-smi: 不存在（无 NVIDIA 显卡 / 驱动）
+nvcc: 不存在（未装 CUDA Toolkit）
+gcc: gcc.exe (x86_64-posix-seh-rev0, Built by MinGW-W64 project) 12.2.0
+python: Python 3.13.14
+PyTorch: 未安装（import torch -> ModuleNotFoundError: No module named 'torch'）
+
+## GPU 实测机（朋友的 NVIDIA RTX 5070，经 WSL2，2026-10-16）
+OS: Linux 6.6.87.2-microsoft-standard-WSL2 (Ubuntu 24.04 x86_64)
+uname: x86_64 x86_64 x86_64 GNU/Linux
+GPU: NVIDIA GeForce RTX 5070 Laptop GPU, 8151MiB, 计算能力 sm_120 (Blackwell)
+nvidia-smi:
+  NVIDIA-SMI 590.62  Driver Version: 592.00  CUDA Version: 13.1
+nvcc: 12.8 (CUDA Toolkit 12.8，编译使用 -arch=sm_120)
+gcc: gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+python: 由 run_all.sh 所建 .venv 提供（torch + cu128 运行时可用）
+PyTorch: torch (cu128 运行时 = CUDA 12.8 运行时)，torch.cuda.is_available() = True
+
+## 说明
+本机无 N 卡，故 nvidia-smi / nvcc / NVIDIA GPU / PyTorch 在本机上记为 null；
+GPU 实测所需的 CUDA / Triton 跑分在朋友的 RTX 5070（WSL2 + CUDA Toolkit 12.8）上完成。

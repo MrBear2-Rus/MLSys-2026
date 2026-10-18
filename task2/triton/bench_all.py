@@ -1,6 +1,6 @@
 """task2/triton/bench_all.py
 
-一键跑完 Task 2 的全部实验（Vector Add / GEMM / RMSNorm / Autotuning），
+一键跑完 Task 2 的全部实验（Vector Add / GEMM / Autotuning），
 结果写入 ../results/*.json。
 
 用法：
@@ -12,7 +12,7 @@ import importlib
 
 
 def main() -> None:
-    for module_name in ("vector_add", "gemm", "rmsnorm", "autotune_search"):
+    for module_name in ("vector_add", "gemm", "autotune_search"):
         print("=" * 78)
         print(f"# {module_name}")
         print("=" * 78)

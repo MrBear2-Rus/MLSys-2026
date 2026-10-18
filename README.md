@@ -13,7 +13,7 @@ MLSys-2026/
 │
 ├── task0/                 前置知识：环境、Benchmark 基础、Roofline
 ├── task1/                 CUDA：Vector Add / Naive GEMM / Shared Tiling / Register Tiling
-├── task2/                 Kernel DSL：Triton / TileLang / RMSNorm / Autotuning
+├── task2/                 Kernel DSL：Triton / TileLang / Autotuning
 ├── task3/                 一个 Token 的一生：Prefill·Decode、KV Cache、MLA、FlashAttention
 └── task4/                 量化与分布式推理：PTQ、手算、DP / TP / PP
 ```
@@ -76,13 +76,13 @@ cd MLSys-2026
 bash run_all.sh
 ```
 
-`run_all.sh` = 环境确认 → 按需补依赖 → Task 1 编译+跑分+画图 → Task 2 全部实验 → 打包 `mlsys_results.zip`。
+`run_all.sh` = 环境确认 → 按需补依赖 → Task 1 编译+跑分（不画图）→ Task 2 全部实验 → 打包 `mlsys_results.zip`。
 选镜像、省钱、踩坑清单见 [`../租卡指南.md`](../租卡指南.md)。
 
 也可以只跑其中一部分：
 
 ```bash
-cd task1 && bash benchmark/build_and_run.sh && python3 benchmark/plot_results.py
+cd task1 && bash benchmark/build_and_run.sh   # 如需图表再另跑 python3 benchmark/plot_results.py
 cd task2 && python3 triton/bench_all.py
 ```
 
@@ -104,7 +104,7 @@ cd task2 && python3 triton/bench_all.py
 |---|---|---|
 | 0 | 环境记录、Benchmark 基础、Roofline | ✅ 问答完成；`nvidia-smi` / `nvcc` 因无 NVIDIA 硬件记为 `null` 并说明原因 |
 | 1 | CUDA Vector Add / GEMM（Naive → Shared → Register） | ✅ 4 个 `.cu` + benchmark 脚本 + 报告；✅ **已在 RTX 5070 上跑出实测数据并填入报告** |
-| 2 | Triton Vector Add / GEMM、B: RMSNorm、C: Autotuning | ✅ 源码 + 报告；✅ **已在 RTX 5070 上跑出实测数据并填入报告** |
+| 2 | Triton Vector Add / GEMM、C: Autotuning | ✅ 源码 + 报告；✅ **已在 RTX 5070 上跑出实测数据并填入报告** |
 | 3 | Prefill/Decode、KV Cache 推导、MLA、FlashAttention 精读 | ✅ 完成（纯阅读 + 推导，无需 GPU） |
 | 4 | 量化公式、INT8/INT4 手算、SmoothQuant/GPTQ/AWQ、DP/TP/PP | ✅ 完成（含两卡 MLP 切分图） |
 

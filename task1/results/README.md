@@ -1,19 +1,19 @@
-# task1/results —— 原始数据（待 NVIDIA GPU 机器执行后填入）
+# task1/results —— 原始数据（RTX 5070 实测，2026-10-16）
 
-本目录里**没有**任何实测数字。原因是完成本仓库的机器是 Intel Arc 显卡，没有 NVIDIA GPU / CUDA，
-而 Task 1 必须在 NVIDIA GPU 上运行；题目也明确要求「不得用预期结果冒充实测结果」，
-所以这里只提供：
+本目录已填入在朋友的 **NVIDIA RTX 5070（sm_120）** 上跑出的真实 CSV（Vector Add / Naive / Shared / Register），
+以及 `environment.txt`。本仓库开发机为 Intel Arc（无 N 卡），故源码与脚本在此开发、实测在他机完成。
+这里提供：
 
 1. 数据文件格式说明（下面两张表）；
 2. 空模板 `*.template.csv`；
-3. 一键执行脚本 `../benchmark/build_and_run.sh` 和画图脚本 `../benchmark/plot_results.py`。
+3. 一键执行脚本 `../benchmark/build_and_run.sh`（如需图表可另跑 `../benchmark/plot_results.py`，作答默认纯文字）。
 
 ## 执行方式
 
 ```bash
 cd task1
 bash benchmark/build_and_run.sh        # 编译 + 跑满全部配置，写入本目录
-python3 benchmark/plot_results.py      # 生成 results/figures/*.png
+# python3 benchmark/plot_results.py     # （可选）生成 results/figures/*.png，作答默认不需要
 ```
 
 `build_and_run.sh` 会自动把 `nvidia-smi` / `nvcc --version` / `uname` / 编译参数写进
@@ -48,7 +48,7 @@ python3 benchmark/plot_results.py      # 生成 results/figures/*.png
 
 ## 报告里必须补的项
 
-跑完之后，把 `report.md` 中标注了 **[待填]** 的表格与图补充完整，并针对以下问题给出**基于实测**的解释：
+跑完之后，把 `report.md` 中标注了 **[待填]** 的表格补充完整，并针对以下问题给出**基于实测**的解释：
 
 - Block Size 增大到某个值后吞吐为何不再上升；1024 是否反而更慢；
 - Tile 大小（8/16/32）与 Shape（方阵 vs 小 M）对性能的影响；
